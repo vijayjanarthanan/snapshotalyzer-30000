@@ -122,7 +122,11 @@ def listInstances(project):
     instances = filter_instances(project)
     for inst in instances:
         print("Stopping instance " + str(inst.id) + "...")
-        inst.stop()
+        try:
+            inst.stop()
+        except botocore.exceptions.ClientError as e:
+            print ("Could not stop {0}.".format(inst.id) + str(e))
+            continue
     return
 
 @instances.command('start')
@@ -134,7 +138,11 @@ def listInstances(project):
     instances = filter_instances(project)
     for inst in instances:
         print("Starting instance " + str(inst.id) + "...")
-        inst.start()
+        try:
+            inst.start()
+        except botocore.exceptions.ClientError as e:
+            print ("Could not start {0}.".format(inst.id) + str(e))
+            continue
     return
 
 if __name__ == '__main__':
