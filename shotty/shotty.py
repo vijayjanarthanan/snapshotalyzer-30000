@@ -1,4 +1,5 @@
 import boto3
+import botocore
 import click
 
 session = boto3.Session(profile_name='shotty')
@@ -67,6 +68,29 @@ def listVolumes(project):
 @cli.group()
 def instances():
     """Commands related to instances"""
+
+@instances.command('createSnapshot')
+@click.option("--project", default=None,
+    help="Only instances for project (tag Project:<name>)")
+def createSnapshot(project):
+    "Creates snaphots of all volumes for all instances in a given project"
+    instances = filter_instances(project)
+
+    for inst in instances:
+        print("Stopping instance {0}".format(inst.id))
+        inst.stop()
+        inst.wait_until_stopped()
+
+        for vol in inst.volumes.all():
+            print ("    Creating snapshot of {0}".format(vol.id))
+            vol.create_snapshot(Description="Created by Snapshotalyzer")
+
+        print("Starting instance {0}".format(inst.id))
+        inst.start()
+        inst.wait_until_running()
+
+    print("Snapshots created for all volumes and instances restarted.")
+    return
 
 @instances.command('list')
 @click.option('--project', default=None,
