@@ -4,7 +4,7 @@ import click
 session = boto3.Session(profile_name='shotty')
 ec2 = session.resource('ec2')
 
-def list_instances(project):
+def filter_instances(project):
     instances=[]
     if project:
         filters = [{'Name':'tag:Project', 'Values': [project]}]
@@ -15,8 +15,58 @@ def list_instances(project):
     return instances;
 
 @click.group()
+def cli():
+    """Shotty manages snapshots"""
+
+@cli.group('snapshots')
+def snapshots():
+    """Commands related to snapshots"""
+
+@snapshots.command("list")
+@click.option("--project", default=None,
+    help="Only snapshots for project (tag Project:<name>)")
+def listSnapshots(project):
+    "List of Snapshots"
+    instances = filter_instances(project)
+    for i in instances:
+        for v in i.volumes.all():
+            for s in v.snapshots.all():
+                print (
+                    ", ".join((
+                        s.id,
+                        v.id,
+                        i.id,
+                        s.state,
+                        s.progress,
+                        s.start_time.strftime("%c")
+                    )))
+    return
+
+@cli.group('volumes')
+def volumes():
+    """Commands related to volumes"""
+
+@volumes.command('list')
+@click.option("--project", default=None,
+    help="Only volumes for project (tag Project:<name>)")
+def listVolumes(project):
+    "List of volumes for each EC2 instance"
+    instances = filter_instances(project)
+
+    for i in instances:
+        for vol in i.volumes.all():
+            print (", ".join((
+                vol.id,
+                i.id,
+                vol.state,
+                str(vol.size) + "GiB",
+                vol.encrypted and "Encrypted" or "Not Encrypted"
+            )))
+    return
+
+@cli.group()
 def instances():
-    """Commands realted to EC2 instances"""
+    """Commands related to instances"""
 
 @instances.command('list')
 @click.option('--project', default=None,
@@ -24,7 +74,7 @@ def instances():
 def listInstances(project):
     "List of EC2 Instances"
 
-    instances = list_instances(project)
+    instances = filter_instances(project)
 
     for inst in instances:
         tags = { tag['Key'] : tag['Value'] for tag in inst.tags or [] }
@@ -45,7 +95,7 @@ def listInstances(project):
 def listInstances(project):
     "Stop EC2 Instances"
 
-    instances = list_instances(project)
+    instances = filter_instances(project)
     for inst in instances:
         print("Stopping instance " + str(inst.id) + "...")
         inst.stop()
@@ -57,11 +107,11 @@ def listInstances(project):
 def listInstances(project):
     "Start EC2 Instances"
 
-    instances = list_instances(project)
+    instances = filter_instances(project)
     for inst in instances:
         print("Starting instance " + str(inst.id) + "...")
         inst.start()
     return
 
 if __name__ == '__main__':
-    instances()
+    cli()
